@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ZIP復元デコーダー</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 2em; }
+    input[type=file] { margin: 1em 0; }
+    #status { margin-top: 1em; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>ZIP復元デコーダー</h1>
+  <p>エンコードされたPNG画像からZIPファイルを復元します</p>
+
+  <input type="file" id="imageInput" accept="image/png">
+  <button onclick="decodeImage()">復元開始</button>
+  <p id="status"></p>
+
+  <script>
+    async function decodeImage() {
+      const input = document.getElementById('imageInput');
+      const status = document.getElementById('status');
+      if (!input.files[0]) {
+        status.textContent = '画像を選んでください';
+        return;
+      }
+
+      const img = new Image();
+      const fileReader = new FileReader();
+      fileReader.onload = () => {
+        img.src = fileReader.result;
+      };
+      fileReader.readAsDataURL(input.files[0]);
+
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+        const base64Bytes = [];
+        for (let i = 0; i < imgData.length; i += 4) { // 4: R, G, B, A
+          base64Bytes.push(imgData[i], imgData[i+1], imgData[i+2]); // R, G, B
+        }
+
+        let base64String = '';
+        for (let i = 0; i < base64Bytes.length; i++) {
+          base64String += String.fromCharCode(base64Bytes[i]);
+        }
+
+        try {
+          const decodedData = Uint8Array.from(atob(base64String), c => c.charCodeAt(0));
+          const blob = new Blob([decodedData], { type: 'application/zip' });
+          const url = URL.createObjectURL(blob);
+
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'Recovered_RobotTemplate.zip';
+          a.textContent = 'ここをクリックしてZIPをダウンロード';
+          status.innerHTML = '';
+          status.appendChild(a);
+        } catch (e) {
+          status.textContent = '復元に失敗しました：' + e;
+        }
+      };
+    }
+  </script>
+</body>
+</html>
